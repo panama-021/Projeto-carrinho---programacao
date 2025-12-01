@@ -113,6 +113,16 @@ uint8_t estadoSetaApp = 0;
 uint8_t estadoFarolDash = 0;
 uint8_t estadoSetaDash = 0;
 
+bool estado_farois_dash = false;
+bool estado_seta_esq_dash = false;
+bool estado_seta_dir_dash = false;
+bool estado_Lanterna_dash = false;
+
+bool estado_farois_app = false;
+bool estado_seta_esq_app = false;
+bool estado_seta_dir_app = false;
+bool estado_Lanterna_app = false;
+
 int estadoIntensidade = 0;
 
 float ultimoErroValido = 0.0f;
@@ -417,53 +427,20 @@ void loop()
     carrinho.seguirLinhaStep(kp, ki, kd, vyPercent);
     Serial.printf("Distancia = %d\n", distancia);
 
-    // if (distancia < 15)
-    // {
-    //   pararCarrinho();
-    // }
+    if (distancia < 60)
+    {
+      pararCarrinho();
+    }
 
     
   }
 
-  switch (estadoAtual)
-    {
-    case NORMAL:
-      if (distancia <= 15)
-      {
-        Serial.println("Obstáculo detectado! Parando...");
-
-        pararCarrinho();      // zera motores
-        tempoAcao = millis(); // salva o tempo do evento
-        estadoAtual = PARANDO;
-      }
-      break;
-
-    case PARANDO:
-      if (millis() - tempoAcao >= 1200)
-      { // espera 1,2s parado
-        Serial.println("Girando para desviar...");
-        motor.girar_direita(25); // ajuste velocidade se quiser
-        tempoAcao = millis();
-        estadoAtual = GIRANDO;
-      }
-      break;
-
-    case GIRANDO:
-      if (millis() - tempoAcao >= 1500)
-      { // gira 1,5s
-        Serial.println("Voltando...");
-        motor.parar();
-        estadoAtual = NORMAL;
-      }
-      break;
-    }
-
-  if (estadoFarol || estadoFarolApp)
+  if (estadoFarol || estadoFarolApp || estado_farois_dash)
   {
     leds.ligarFarol(AMBOS);
   }
 
-  if (estadoLanterna || estado_LanternaT_esq_dash || estado_LanternaT_dir_dash)
+  if (estadoLanterna || estado_Lanterna_dash || estado_Lanterna_app)
   {
     leds.ligarLanterna(AMBOS);
   }
@@ -615,14 +592,27 @@ void Callback(char *topic, byte *payload, unsigned int length)
     if (estadoAcesso)
     {
       // carrinho/dashboard
-      if (!doc["estado_LanternaT_esq_dash"].isNull())
+      if(!doc["estado_farois_dash"].isNull())
       {
-        estado_LanternaT_esq_dash = doc["estado_LanternaT_esq_dash"];
+        estado_farois_dash = doc["estado_farois_dash"];
         atualizacaoDash = 1;
       }
-      if (!doc["estado_LanternaT_dir_dash"].isNull())
+
+      if(!doc["estado_seta_esq_dash"].isNull())
       {
-        estado_LanternaT_dir_dash = doc["estado_LanternaT_dir_dash"];
+        estado_seta_esq_dash = doc["estado_seta_esq_dash"];
+        atualizacaoDash = 1;
+      }
+
+      if(!doc["estado_seta_dir_dash"].isNull())
+      {
+        estado_seta_dir_dash = doc["estado_seta_dir_dash"];
+        atualizacaoDash = 1;
+      }
+
+      if(!doc["estado_Lanterna_dash"].isNull())
+      {
+        estado_Lanterna_dash = doc["estado_Lanterna_dash"];
         atualizacaoDash = 1;
       }
     }
