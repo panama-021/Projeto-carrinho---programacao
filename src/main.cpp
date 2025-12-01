@@ -106,22 +106,13 @@ bool parar_Carrinho = false;
 int distancia = 0;
 
 uint8_t estadoFarolApp = 0;
+uint8_t estadoLanternaApp = 0;
 uint8_t estado_LanternaT_esq_dash = 0;
 uint8_t estado_LanternaT_dir_dash = 0;
 uint8_t estadoFaroDirlDash = 0;
 uint8_t estadoSetaApp = 0;
 uint8_t estadoFarolDash = 0;
 uint8_t estadoSetaDash = 0;
-
-bool estado_farois_dash = false;
-bool estado_seta_esq_dash = false;
-bool estado_seta_dir_dash = false;
-bool estado_Lanterna_dash = false;
-
-bool estado_farois_app = false;
-bool estado_seta_esq_app = false;
-bool estado_seta_dir_app = false;
-bool estado_Lanterna_app = false;
 
 int estadoIntensidade = 0;
 
@@ -427,7 +418,7 @@ void loop()
     carrinho.seguirLinhaStep(kp, ki, kd, vyPercent);
     Serial.printf("Distancia = %d\n", distancia);
 
-    if (distancia < 60)
+    if (distancia < 15)
     {
       pararCarrinho();
     }
@@ -435,12 +426,13 @@ void loop()
     
   }
 
-  if (estadoFarol || estadoFarolApp || estado_farois_dash)
+
+  if (estadoFarol || estadoFarolApp)
   {
     leds.ligarFarol(AMBOS);
   }
 
-  if (estadoLanterna || estado_Lanterna_dash || estado_Lanterna_app)
+  if (estadoLanterna || estado_LanternaT_esq_dash || estadoLanternaApp)
   {
     leds.ligarLanterna(AMBOS);
   }
@@ -560,6 +552,12 @@ void Callback(char *topic, byte *payload, unsigned int length)
       atualizacaoApp = 1;
     }
 
+    if (!doc["estado_Lanterna_app"].isNull())
+    {
+      estadoLanternaApp = doc["estado_Lanterna_app"];
+      atualizacaoApp = 1;
+    }
+
     // if (!doc["valor_kp"].isNull())
     // {
     //   kp = doc["valor_kp"];
@@ -592,27 +590,14 @@ void Callback(char *topic, byte *payload, unsigned int length)
     if (estadoAcesso)
     {
       // carrinho/dashboard
-      if(!doc["estado_farois_dash"].isNull())
+      if (!doc["estado_LanternaT_esq_dash"].isNull())
       {
-        estado_farois_dash = doc["estado_farois_dash"];
+        estado_LanternaT_esq_dash = doc["estado_LanternaT_esq_dash"];
         atualizacaoDash = 1;
       }
-
-      if(!doc["estado_seta_esq_dash"].isNull())
+      if (!doc["estado_LanternaT_dir_dash"].isNull())
       {
-        estado_seta_esq_dash = doc["estado_seta_esq_dash"];
-        atualizacaoDash = 1;
-      }
-
-      if(!doc["estado_seta_dir_dash"].isNull())
-      {
-        estado_seta_dir_dash = doc["estado_seta_dir_dash"];
-        atualizacaoDash = 1;
-      }
-
-      if(!doc["estado_Lanterna_dash"].isNull())
-      {
-        estado_Lanterna_dash = doc["estado_Lanterna_dash"];
+        estado_LanternaT_dir_dash = doc["estado_LanternaT_dir_dash"];
         atualizacaoDash = 1;
       }
     }
