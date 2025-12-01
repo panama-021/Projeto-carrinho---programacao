@@ -14,13 +14,13 @@ public:
   // APIs públicas para os alunos
   void entrarCalibracao();                 // força o modo de calibração
   void iniciarSeguirLinha();               // força entrar em seguir linha
-  void seguirLinhaStep();                  // executa um passo de seguidor com PID
+  void seguirLinhaStep(float kp, float ki, float kd, float vyPercent);                  // executa um passo de seguidor com PID
   uint8_t lerLinhaMascara();               // lê A0..A7 do MCP
   float lerErro();                         // lê máscara e retorna erro
   float calcularErroMascara(uint8_t m);    // calcula o erro a partir da máscara
   void controlarRodas(float vy, float vx, float omega); // percentuais -100..+100
     // pid
-  float pidAtualizar(float erro, float dt);
+  float pidAtualizar(float erro, float dt, float kp, float ki, float kd);
     float calcularDt();
 
     
