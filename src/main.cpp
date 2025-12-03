@@ -75,7 +75,7 @@ bool estadoLanterna = 0;
 int posicaoFarol = 0;
 int posicaoSeta = 0;
 int posicaoLanterna = 0;
-int frequenciaPisca = 200;
+int frequenciaPisca = 1000;
 
 bool botaoA = 0;
 bool botaoAntesA = 0;
@@ -96,7 +96,7 @@ int analogX = 0;
 int analogY = 0;
 
 int alterarFormato = 0;
-int velocidadeCarrinho = 30;
+int velocidadeCarrinho = 5;
 int estadoTick = 2;
 
 bool emCorrida = false;
@@ -160,7 +160,8 @@ enum EstadoCarrinho
   PARANDO,
   GIRANDO
 };
-unsigned long tempoAcao = 0;
+unsigned long tempoDistancia01 = 2000;
+unsigned long tempoDistancia02 = 11000;
 
 uint32_t tPrevMicros = 0;
 
@@ -179,7 +180,6 @@ void joystick();
 void pararCarrinho();
 void displayCarrinho();
 void desenhaMenuBase();
-void comandosApp();
 
 void IRAM_ATTR encoderISR()
 {
@@ -370,17 +370,26 @@ void loop()
   leds.update();
 
   // 🔹 Se o carrinho estiver ativo, lê o sensor de distância normalmente
-  uint16_t distancia = sensor.readRangeContinuousMillimeters();
+  uint16_t leitura = sensor.readRangeContinuousMillimeters();
 
   if (sensor.timeoutOccurred())
   {
-    Serial.println("Timeout na leitura do sensor VL53L0X");
+    Serial.println("Timeout na leitura do VL53L0X");
     return;
   }
 
-  // Serial.printf("Distancia: %d mm\n", distancia);
+  // FILTRO para estabilidade
+  static int distanciaFiltrada = 1000;
 
-  prefs.begin("workSpace", false);
+  // Se leitura muito baixa, considera SEM obstáculo
+  if (leitura < 80)
+  {
+    leitura = 2000; // longe
+  }
+
+  // filtro
+  distanciaFiltrada = 0.7 * distanciaFiltrada + 0.3 * leitura;
+  distancia = distanciaFiltrada;
 
   if (mudou)
   {
@@ -421,27 +430,15 @@ void loop()
   if (estadoModo)
   {
     carrinho.seguirLinhaStep(kp, ki, kd, vyPercent);
-    Serial.printf("Distancia = %d\n", distancia);
-
-    if (distancia < 15)
-    {
-      pararCarrinho();
-    }
   }
 
-  if (estadoFarol || estadoFarolApp)
-  {
-    leds.ligarFarol(AMBOS);
-  }
-
-  if (estadoLanterna || estado_LanternaT_esq_dash || estadoLanternaApp)
+  if (estadoLanterna)
   {
     leds.ligarLanterna(AMBOS);
   }
 
   else
   {
-    leds.desligarLed(1);
     leds.desligarLed(3);
   }
 
@@ -466,8 +463,6 @@ void loop()
 
   else
     leds.desligarLed(2);
-
-  comandosApp();
 }
 
 void Callback(char *topic, byte *payload, unsigned int length)
@@ -545,44 +540,70 @@ void Callback(char *topic, byte *payload, unsigned int length)
     if (!doc["estado_Farol_app"].isNull())
     {
       estadoFarolApp = doc["estado_Farol_app"];
-      atualizacaoApp = 1;
+
+      if (estadoFarolApp)
+        leds.ligarFarol(AMBOS);
+
+      else
+        leds.desligarLed(1);
     }
 
     if (!doc["estado_Seta_app"].isNull())
     {
       estadoSetaApp = doc["estado_Seta_app"];
-      atualizacaoApp = 1;
+
+      switch (estadoSetaApp)
+      {
+      case 1:
+        leds.piscarSeta(AMBOS, frequenciaPisca);
+        break;
+      case 2:
+        leds.piscarSeta(DIREITA, frequenciaPisca);
+        break;
+      case 3:
+        leds.piscarSeta(ESQUERDA, frequenciaPisca);
+        break;
+
+      default:
+      leds.desligarLed(2);
+        break;
+      }
     }
 
     if (!doc["estado_Lanterna_app"].isNull())
     {
       estadoLanternaApp = doc["estado_Lanterna_app"];
-      atualizacaoApp = 1;
+      
+        if (estadoFarolApp)
+        leds.ligarLanterna(AMBOS);
+
+      else
+        leds.desligarLed(3);
     }
 
-    if (!doc["valor_kp"].isNull())
-    {
-      kp = doc["valor_kp"];
-      atualizacaoApp = 1;
-    }
+    // if (!doc["valor_kp"].isNull())
+    // {
+    //   kp = doc["valor_kp"];
+    //   atualizacaoApp = 1;
+    // }
 
-    if (!doc["valor_ki"].isNull())
-    {
-      ki = doc["valor_ki"];
-      atualizacaoApp = 1;
-    }
+    // if (!doc["valor_ki"].isNull())
+    // {
+    //   ki = doc["valor_ki"];
+    //   atualizacaoApp = 1;
+    // }
 
-    if (!doc["valor_kd"].isNull())
-    {
-      kd = doc["valor_kd"];
-      atualizacaoApp = 1;
-    }
+    // if (!doc["valor_kd"].isNull())
+    // {
+    //   kd = doc["valor_kd"];
+    //   atualizacaoApp = 1;
+    // }
 
-    if (!doc["valor_velocidade"].isNull())
-    {
-      vyPercent = doc["valor_velocidade"];
-      atualizacaoApp = 1;
-    }
+    // if (!doc["valor_velocidade"].isNull())
+    // {
+    //   vyPercent = doc["valor_velocidade"];
+    //   atualizacaoApp = 1;
+    // }
     if (!doc["estado_acesso"].isNull())
     {
       estadoAcesso = doc["estado_acesso"];
@@ -595,22 +616,42 @@ void Callback(char *topic, byte *payload, unsigned int length)
       if (!doc["estado_farois_dash"].isNull())
       {
         estado_farois_dash = doc["estado_farois_dash"];
-        atualizacaoDash = 1;
+
+        if (estado_farois_dash)
+          leds.ligarFarol(AMBOS);
+
+        else
+          leds.desligarLed(1);
       }
       if (!doc["estado_seta_esq_dash"].isNull())
       {
         estado_seta_esq_dash = doc["estado_seta_esq_dash"];
-        atualizacaoDash = 1;
+
+        if (estado_seta_esq_dash)
+          leds.piscarSeta(ESQUERDA, frequenciaPisca);
+
+        else
+          leds.desligarLed(2);
       }
       if (!doc["estado_seta_dir_dash"].isNull())
       {
         estado_seta_dir_dash = doc["estado_seta_dir_dash"];
-        atualizacaoDash = 1;
+
+        if (estado_seta_dir_dash)
+          leds.piscarSeta(DIREITA, frequenciaPisca);
+
+        else
+          leds.desligarLed(2);
       }
       if (!doc["estado_Lanterna_dash"].isNull())
       {
         estado_Lanterna_dash = doc["estado_Lanterna_dash"];
-        atualizacaoDash = 1;
+
+        if (estado_Lanterna_dash)
+          leds.ligarLanterna(AMBOS);
+
+        else
+          leds.desligarLed(3);
       }
     }
   }
@@ -838,15 +879,15 @@ void joystick()
       if (analogX == 9 && analogY > 15)
       {
         motor.avancar(velocidadeCarrinho);
-        leds.ligarFarol(AMBOS);
-        leds.desligarLed(3);
+        // leds.ligarFarol(AMBOS);
+        // leds.desligarLed(3);
       }
 
       else if (analogX == 9 && analogY < 5)
       {
         motor.para_traz(velocidadeCarrinho);
-        leds.ligarLanterna(AMBOS);
-        leds.desligarLed(1);
+        // leds.ligarLanterna(AMBOS);
+        // leds.desligarLed(1);
       }
 
       else if (analogX > 15 && analogY == 9)
@@ -858,33 +899,72 @@ void joystick()
       else if (analogX > 15 && analogY > 15)
       {
         motor.avancar_esquerda(velocidadeCarrinho);
-        leds.ligarFarol(AMBOS);
-        leds.desligarLed(3);
+        // leds.ligarFarol(AMBOS);
+        // leds.desligarLed(3);
       }
 
       else if (analogX < 5 && analogY > 15)
       {
         motor.avancar_direita(velocidadeCarrinho);
-        leds.ligarFarol(AMBOS);
-        leds.desligarLed(3);
+        // leds.ligarFarol(AMBOS);
+        // leds.desligarLed(3);
       }
 
       else if (analogX > 15 && analogY < 5)
       {
         motor.para_traz_esquerda(velocidadeCarrinho);
-        leds.ligarLanterna(AMBOS);
-        leds.desligarLed(1);
+        // leds.ligarLanterna(AMBOS);
+        // leds.desligarLed(1);
       }
 
       else if (analogX < 5 && analogY < 5)
       {
         motor.para_traz_direita(velocidadeCarrinho);
-        leds.ligarLanterna(AMBOS);
-        leds.desligarLed(1);
+        // leds.ligarLanterna(AMBOS);
+        // leds.desligarLed(1);
       }
 
       else
         motor.parar();
+
+      if (distancia < 200)
+      {
+        motor.parar();
+        // Serial.printf("Distancia = %d\n", distancia);
+
+        switch (estadoAtual)
+        {
+        case NORMAL:
+          // if (distancia <= 200)
+          // {
+          Serial.println("Obstáculo detectado! Parando...");
+
+          // motor.parar();
+          // tempoDistancia01 = millis();
+          estadoAtual = PARANDO;
+          // }
+          break;
+
+        case PARANDO:
+          if (millis() - tempoDistancia01 > 2000) // espera 1s parado
+          {
+            motor.girar_direita(50); // velocidade do giro
+            Serial.println("Girando meia volta...");
+            // tempoDistancia02 = millis();
+            estadoAtual = GIRANDO;
+          }
+          break;
+
+        case GIRANDO:
+          if (millis() - tempoDistancia02 > 10000) // TEMPO PARA MEIA VOLTA (ajuste fino)
+          {
+            motor.parar();
+            Serial.println("Meia volta concluída!");
+            estadoAtual = NORMAL;
+          }
+          break;
+        }
+      }
       break;
 
     case 1: // Formato Circular
@@ -910,6 +990,45 @@ void joystick()
 
       else
         motor.parar();
+
+      if (distancia < 200)
+      {
+        motor.parar();
+        // Serial.printf("Distancia = %d\n", distancia);
+
+        switch (estadoAtual)
+        {
+        case NORMAL:
+          if (distancia <= 200)
+          {
+            Serial.println("Obstáculo detectado! Parando...");
+
+            // motor.parar();
+            // tempoDistancia01 = millis();
+            estadoAtual = PARANDO;
+          }
+          break;
+
+        case PARANDO:
+          if (millis() - tempoDistancia01 > 2000) // espera 1s parado
+          {
+            Serial.println("Girando meia volta...");
+            motor.girar_direita(40); // velocidade do giro
+            // tempoDistancia02 = millis();
+            estadoAtual = GIRANDO;
+          }
+          break;
+
+        case GIRANDO:
+          if (millis() - tempoDistancia02 > 10000) // TEMPO PARA MEIA VOLTA (ajuste fino)
+          {
+            Serial.println("Meia volta concluída!");
+            motor.parar();
+            estadoAtual = NORMAL;
+          }
+          break;
+        }
+      }
       break;
 
     case 2: // Formato Arco
@@ -927,6 +1046,44 @@ void joystick()
 
       else
         motor.parar();
+
+      if (distancia < 200)
+      {
+        motor.parar();
+        // Serial.printf("Distancia = %d\n", distancia);
+
+        switch (estadoAtual)
+        {
+        case NORMAL:
+          if (distancia < 150)
+          {
+            // motor.parar();
+            Serial.println("Obstáculo detectado! Parando...");
+            // tempoDistancia01 = millis();
+            estadoAtual = PARANDO;
+          }
+          break;
+
+        case PARANDO:
+          if (millis() - tempoDistancia01 >= 2000) // espera 1s parado
+          {
+            Serial.println("Girando meia volta...");
+            motor.girar_direita(30); // velocidade do giro
+            // tempoDistancia02 = millis();
+            estadoAtual = GIRANDO;
+          }
+          break;
+
+        case GIRANDO:
+          if (millis() - tempoDistancia02 >= 10000) // TEMPO PARA MEIA VOLTA (ajuste fino)
+          {
+            Serial.println("Meia volta concluída!");
+            motor.parar();
+            estadoAtual = NORMAL;
+          }
+          break;
+        }
+      }
       break;
 
     default:
@@ -1007,48 +1164,4 @@ void displayCarrinho()
 
     atualizacaoDisplay = 0;
   }
-}
-
-void comandosApp()
-{
-  // if (atualizacaoApp)
-  // {
-  //   if (estadoSetaApp > 0)
-  //     leds.piscarSeta(estadoSetaApp, frequenciaPisca);
-
-  //   else
-  //     leds.desligarLed(2);
-
-  //   if (estadoFarolApp > 0)
-  //   {
-  //     leds.ligarFarol(estadoFarolApp);
-  //     leds.setIntensidade(estadoIntensidade);
-  //   }
-  // }
-
-
-    if (estado_Lanterna_dash)
-      leds.ligarLanterna(AMBOS);
-
-    else
-      leds.desligarLed(3);
-
-    if (estado_farois_dash)
-      leds.ligarFarol(AMBOS);
-
-    else
-      leds.desligarLed(1);
-
-    if (estado_seta_esq_dash)
-      leds.piscarSeta(ESQUERDA, frequenciaPisca);
-
-    else if(estado_seta_dir_dash)
-    leds.piscarSeta(DIREITA, frequenciaPisca);
-
-    else
-      leds.desligarLed(2);
-  
-
-  atualizacaoApp = 0;
-  atualizacaoDash = 0;
 }
