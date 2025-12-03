@@ -162,6 +162,7 @@ enum EstadoCarrinho
 };
 unsigned long tempoDistancia01 = 2000;
 unsigned long tempoDistancia02 = 11000;
+unsigned long tempoDistancia03 = 11000;
 
 uint32_t tPrevMicros = 0;
 
@@ -319,9 +320,6 @@ void loop()
     conectaMQTT();
 
   mqtt.loop();
-  enviar_mqtt();
-  Encoder_boot.update();
-  leds.update();
 
   unsigned long agora = millis();
 
@@ -392,6 +390,8 @@ void loop()
   distanciaFiltrada = 0.7 * distanciaFiltrada + 0.3 * leitura;
   distancia = distanciaFiltrada;
 
+  Encoder_boot.update();
+
   if (mudou)
   {
     if (!telaCreditos)
@@ -423,6 +423,8 @@ void loop()
       prefs.putBool("estado_Creditos_Salvo", telaCreditos);
     }
   }
+
+  enviar_mqtt();
 
   if (estadoModo)
   {
@@ -903,43 +905,11 @@ void joystick()
       else
         motor.parar();
 
-      if (distancia < 170)
+
+      if (distancia < 200)
       {
         motor.parar();
         // Serial.printf("Distancia = %d\n", distancia);
-
-        switch (estadoAtual)
-        {
-        case NORMAL:
-          // if (distancia <= 200)
-          // {
-          Serial.println("Obstáculo detectado! Parando...");
-
-          // motor.parar();
-          // tempoDistancia01 = millis();
-          estadoAtual = PARANDO;
-          // }
-          break;
-
-        case PARANDO:
-          if (millis() - tempoDistancia01 > 2000) // espera 1s parado
-          {
-            motor.girar_direita(50); // velocidade do giro
-            Serial.println("Girando meia volta...");
-            // tempoDistancia02 = millis();
-            estadoAtual = GIRANDO;
-          }
-          break;
-
-        case GIRANDO:
-          if (millis() - tempoDistancia02 > 10000) // TEMPO PARA MEIA VOLTA (ajuste fino)
-          {
-            motor.parar();
-            Serial.println("Meia volta concluída!");
-            estadoAtual = NORMAL;
-          }
-          break;
-        }
       }
       break;
 
@@ -1144,6 +1114,8 @@ void displayCarrinho()
 
 void piscarSetaApp()
 {
+  leds.update();
+
   switch (estadoSetaApp)
   {
   case 1:
@@ -1164,6 +1136,8 @@ void piscarSetaApp()
 
 void piscarSetaDash()
 {
+  leds.update();
+
   if (estado_seta_esq_dash)
     leds.piscarSeta(ESQUERDA, frequenciaPisca);
 
