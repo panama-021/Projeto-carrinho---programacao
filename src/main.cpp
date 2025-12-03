@@ -114,6 +114,11 @@ uint8_t estadoSetaApp = 0;
 uint8_t estadoFarolDash = 0;
 uint8_t estadoSetaDash = 0;
 
+bool estado_farois_dash = false;
+bool estado_seta_esq_dash = false;
+bool estado_seta_dir_dash = false;
+bool estado_Lanterna_dash = false;
+
 int estadoIntensidade = 0;
 
 float ultimoErroValido = 0.0f;
@@ -169,7 +174,7 @@ unsigned long tempoAcao02 = 4600;
 void conectaMQTT();
 void Callback(char *, byte *, unsigned int);
 void enviar_mqtt();
-void modoSeguidorLinha(); 
+void modoSeguidorLinha();
 void joystick();
 void pararCarrinho();
 void displayCarrinho();
@@ -422,10 +427,7 @@ void loop()
     {
       pararCarrinho();
     }
-
-    
   }
-
 
   if (estadoFarol || estadoFarolApp)
   {
@@ -558,29 +560,29 @@ void Callback(char *topic, byte *payload, unsigned int length)
       atualizacaoApp = 1;
     }
 
-    // if (!doc["valor_kp"].isNull())
-    // {
-    //   kp = doc["valor_kp"];
-    //   atualizacaoApp = 1;
-    // }
+    if (!doc["valor_kp"].isNull())
+    {
+      kp = doc["valor_kp"];
+      atualizacaoApp = 1;
+    }
 
-    // if (!doc["valor_ki"].isNull())
-    // {
-    //   ki = doc["valor_ki"];
-    //   atualizacaoApp = 1;
-    // }
+    if (!doc["valor_ki"].isNull())
+    {
+      ki = doc["valor_ki"];
+      atualizacaoApp = 1;
+    }
 
-    // if (!doc["valor_kd"].isNull())
-    // {
-    //   kd = doc["valor_kd"];
-    //   atualizacaoApp = 1;
-    // }
+    if (!doc["valor_kd"].isNull())
+    {
+      kd = doc["valor_kd"];
+      atualizacaoApp = 1;
+    }
 
-    // if (!doc["valor_velocidade"].isNull())
-    // {
-    //   vyPercent = doc["valor_velocidade"];
-    //   atualizacaoApp = 1;
-    // }
+    if (!doc["valor_velocidade"].isNull())
+    {
+      vyPercent = doc["valor_velocidade"];
+      atualizacaoApp = 1;
+    }
     if (!doc["estado_acesso"].isNull())
     {
       estadoAcesso = doc["estado_acesso"];
@@ -590,14 +592,24 @@ void Callback(char *topic, byte *payload, unsigned int length)
     if (estadoAcesso)
     {
       // carrinho/dashboard
-      if (!doc["estado_LanternaT_esq_dash"].isNull())
+      if (!doc["estado_farois_dash"].isNull())
       {
-        estado_LanternaT_esq_dash = doc["estado_LanternaT_esq_dash"];
+        estado_farois_dash = doc["estado_farois_dash"];
         atualizacaoDash = 1;
       }
-      if (!doc["estado_LanternaT_dir_dash"].isNull())
+      if (!doc["estado_seta_esq_dash"].isNull())
       {
-        estado_LanternaT_dir_dash = doc["estado_LanternaT_dir_dash"];
+        estado_seta_esq_dash = doc["estado_seta_esq_dash"];
+        atualizacaoDash = 1;
+      }
+      if (!doc["estado_seta_dir_dash"].isNull())
+      {
+        estado_seta_dir_dash = doc["estado_seta_dir_dash"];
+        atualizacaoDash = 1;
+      }
+      if (!doc["estado_Lanterna_dash"].isNull())
+      {
+        estado_Lanterna_dash = doc["estado_Lanterna_dash"];
         atualizacaoDash = 1;
       }
     }
@@ -709,7 +721,7 @@ void enviar_mqtt()
   else
   {
     doc["salvar"] = false;
-  }  
+  }
 
   static unsigned long tempoAntes = 0;
   unsigned long tempoAgora = millis();
@@ -805,10 +817,9 @@ void joystick()
     if (botaoK) // botão está pressionado
     {
 
-        // segurou 3 segundos → ativa o easter egg
-        modoEasterEgg = true; // ou toggle: = !modoEasterEgg;
-        atualizacaoDisplay = 1;
-      
+      // segurou 3 segundos → ativa o easter egg
+      modoEasterEgg = true; // ou toggle: = !modoEasterEgg;
+      atualizacaoDisplay = 1;
     }
 
     botaoAntesA = botaoA;
@@ -1000,38 +1011,43 @@ void displayCarrinho()
 
 void comandosApp()
 {
-  if (atualizacaoApp)
-  {
-    if (estadoSetaApp > 0)
-      leds.piscarSeta(estadoSetaApp, frequenciaPisca);
+  // if (atualizacaoApp)
+  // {
+  //   if (estadoSetaApp > 0)
+  //     leds.piscarSeta(estadoSetaApp, frequenciaPisca);
+
+  //   else
+  //     leds.desligarLed(2);
+
+  //   if (estadoFarolApp > 0)
+  //   {
+  //     leds.ligarFarol(estadoFarolApp);
+  //     leds.setIntensidade(estadoIntensidade);
+  //   }
+  // }
+
+
+    if (estado_Lanterna_dash)
+      leds.ligarLanterna(AMBOS);
+
+    else
+      leds.desligarLed(3);
+
+    if (estado_farois_dash)
+      leds.ligarFarol(AMBOS);
+
+    else
+      leds.desligarLed(1);
+
+    if (estado_seta_esq_dash)
+      leds.piscarSeta(ESQUERDA, frequenciaPisca);
+
+    else if(estado_seta_dir_dash)
+    leds.piscarSeta(DIREITA, frequenciaPisca);
 
     else
       leds.desligarLed(2);
-
-    if (estadoFarolApp > 0)
-    {
-      leds.ligarFarol(estadoFarolApp);
-      leds.setIntensidade(estadoIntensidade);
-    }
-  }
-
-  if (atualizacaoDash)
-  {
-    if (estado_LanternaT_esq_dash)
-      leds.ligarLanterna(2);
-
-    else
-      leds.desligarLed(3);
-
-    if (estado_LanternaT_dir_dash)
-      leds.ligarLanterna(3);
-
-    else
-      leds.desligarLed(3);
-  }
-
-  else
-    return;
+  
 
   atualizacaoApp = 0;
   atualizacaoDash = 0;
