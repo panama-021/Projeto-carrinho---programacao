@@ -35,7 +35,5 @@ public:
     void update();
     uint8_t piscarSeta(uint8_t, unsigned long);
     // void desligarSetas(uint8_t);
-
-    void setIntensidade(uint8_t intensidade);
 };
 #endif
