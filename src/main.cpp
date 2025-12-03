@@ -96,8 +96,8 @@ int analogX = 0;
 int analogY = 0;
 
 int alterarFormato = 0;
-int velocidadeCarrinho = 5;
-int estadoTick = 2;
+int velocidadeCarrinho = 30;
+int estadoTick = 0;
 
 bool emCorrida = false;
 bool emAtrasoPartida = false;
@@ -180,6 +180,8 @@ void joystick();
 void pararCarrinho();
 void displayCarrinho();
 void desenhaMenuBase();
+void piscarSetaApp();
+void piscarSetaDash();
 
 void IRAM_ATTR encoderISR()
 {
@@ -317,6 +319,9 @@ void loop()
     conectaMQTT();
 
   mqtt.loop();
+  enviar_mqtt();
+  Encoder_boot.update();
+  leds.update();
 
   unsigned long agora = millis();
 
@@ -364,10 +369,6 @@ void loop()
       return;
     }
   }
-
-  enviar_mqtt();
-  Encoder_boot.update();
-  leds.update();
 
   // 🔹 Se o carrinho estiver ativo, lê o sensor de distância normalmente
   uint16_t leitura = sensor.readRangeContinuousMillimeters();
@@ -423,46 +424,50 @@ void loop()
     }
   }
 
-  displayCarrinho();
-
-  joystick();
-
   if (estadoModo)
   {
     carrinho.seguirLinhaStep(kp, ki, kd, vyPercent);
-  }
-
-  if (estadoLanterna)
-  {
-    leds.ligarLanterna(AMBOS);
+    // carrinho.tick(estadoTick);
   }
 
   else
-  {
-    leds.desligarLed(3);
-  }
+    joystick();
 
-  if (estadoSeta)
-  {
-    switch (posicaoSeta)
-    {
-    case 1:
-      leds.piscarSeta(AMBOS, frequenciaPisca);
-      break;
-    case 2:
-      leds.piscarSeta(DIREITA, frequenciaPisca);
-      break;
-    case 3:
-      leds.piscarSeta(ESQUERDA, frequenciaPisca);
-      break;
+  displayCarrinho();
 
-    default:
-      break;
-    }
-  }
+  piscarSetaApp();
+  piscarSetaDash();
+  // if (estadoLanterna)
+  // {
+  //   leds.ligarLanterna(AMBOS);
+  // }
 
-  else
-    leds.desligarLed(2);
+  // else
+  // {
+  //   leds.desligarLed(3);
+  // }
+
+  // if (estadoSeta)
+  // {
+  //   switch (posicaoSeta)
+  //   {
+  //   case 1:
+  //     leds.piscarSeta(AMBOS, frequenciaPisca);
+  //     break;
+  //   case 2:
+  //     leds.piscarSeta(DIREITA, frequenciaPisca);
+  //     break;
+  //   case 3:
+  //     leds.piscarSeta(ESQUERDA, frequenciaPisca);
+  //     break;
+
+  //   default:
+  //     break;
+  //   }
+  // }
+
+  // else
+  //   leds.desligarLed(2);
 }
 
 void Callback(char *topic, byte *payload, unsigned int length)
@@ -551,30 +556,13 @@ void Callback(char *topic, byte *payload, unsigned int length)
     if (!doc["estado_Seta_app"].isNull())
     {
       estadoSetaApp = doc["estado_Seta_app"];
-
-      switch (estadoSetaApp)
-      {
-      case 1:
-        leds.piscarSeta(AMBOS, frequenciaPisca);
-        break;
-      case 2:
-        leds.piscarSeta(DIREITA, frequenciaPisca);
-        break;
-      case 3:
-        leds.piscarSeta(ESQUERDA, frequenciaPisca);
-        break;
-
-      default:
-      leds.desligarLed(2);
-        break;
-      }
     }
 
     if (!doc["estado_Lanterna_app"].isNull())
     {
       estadoLanternaApp = doc["estado_Lanterna_app"];
-      
-        if (estadoFarolApp)
+
+      if (estadoLanternaApp)
         leds.ligarLanterna(AMBOS);
 
       else
@@ -626,22 +614,10 @@ void Callback(char *topic, byte *payload, unsigned int length)
       if (!doc["estado_seta_esq_dash"].isNull())
       {
         estado_seta_esq_dash = doc["estado_seta_esq_dash"];
-
-        if (estado_seta_esq_dash)
-          leds.piscarSeta(ESQUERDA, frequenciaPisca);
-
-        else
-          leds.desligarLed(2);
       }
       if (!doc["estado_seta_dir_dash"].isNull())
       {
         estado_seta_dir_dash = doc["estado_seta_dir_dash"];
-
-        if (estado_seta_dir_dash)
-          leds.piscarSeta(DIREITA, frequenciaPisca);
-
-        else
-          leds.desligarLed(2);
       }
       if (!doc["estado_Lanterna_dash"].isNull())
       {
@@ -927,7 +903,7 @@ void joystick()
       else
         motor.parar();
 
-      if (distancia < 200)
+      if (distancia < 170)
       {
         motor.parar();
         // Serial.printf("Distancia = %d\n", distancia);
@@ -1164,4 +1140,39 @@ void displayCarrinho()
 
     atualizacaoDisplay = 0;
   }
+}
+
+void piscarSetaApp()
+{
+  switch (estadoSetaApp)
+  {
+  case 1:
+    leds.piscarSeta(AMBOS, frequenciaPisca);
+    break;
+  case 2:
+    leds.piscarSeta(DIREITA, frequenciaPisca);
+    break;
+  case 3:
+    leds.piscarSeta(ESQUERDA, frequenciaPisca);
+    break;
+
+  default:
+    leds.desligarLed(2);
+    break;
+  }
+}
+
+void piscarSetaDash()
+{
+  if (estado_seta_esq_dash)
+    leds.piscarSeta(ESQUERDA, frequenciaPisca);
+
+  else
+    leds.desligarLed(2);
+
+  if (estado_seta_dir_dash)
+    leds.piscarSeta(DIREITA, frequenciaPisca);
+
+  else
+    leds.desligarLed(2);
 }
