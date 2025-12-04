@@ -38,6 +38,7 @@ const char *mqtt_SUB_app = "carrinho/app";
 const char *mqtt_SUB_dash = "carrinho/dash";
 const char *mqtt_PUB = "carrinho/dados";
 
+const char *id_doc = "carrinho";
 // MCP inicializado fora da classe e passado por referência
 WiFiClientSecure espClient;
 PubSubClient mqtt(espClient);
@@ -120,18 +121,18 @@ bool estado_Lanterna_dash = false;
 
 bool atualizacaoDisplay = 0;
 bool estadoModo = 0;
-bool telaCreditos = 0; 
+bool telaCreditos = 0;
 bool modoEasterEgg = false;
 bool esperandoEaster = false;
 
-volatile int movimento = 1; 
+volatile int movimento = 1;
 volatile int acumulador = 0;
 volatile bool mudou = false;
 volatile uint8_t ultimoEstado = 0;
 
 unsigned long ultimoTempo = 0;
 const unsigned long intervalo = 3000;
-unsigned long ultimoCheckCartao = 0; 
+unsigned long ultimoCheckCartao = 0;
 const unsigned long intervaloCartao = 500;
 
 // Banco de dados
@@ -354,7 +355,6 @@ void loop()
   distanciaFiltrada = 0.7 * distanciaFiltrada + 0.3 * leitura;
   distancia = distanciaFiltrada;
 
-  
   Encoder_boot.update();
 
   if (mudou)
@@ -396,14 +396,11 @@ void loop()
     carrinho.seguirLinhaStep(kp, ki, kd, vyPercent);
     // carrinho.tick(estadoTick);
 
-    if (distancia < 150)
-      pararCarrinho();
-
-    Serial.printf("distancia : %d\n", distancia);
+    // if (distancia < 130)
+    //   pararCarrinho();
   }
 
-  else
-    joystick();
+  joystick();
 
   displayCarrinho();
 
@@ -612,6 +609,7 @@ void enviar_mqtt()
   tempMotor03 = leitura_motor03 * 0.01875;      // CONVERTER  EM TEMPERATURA DO LM35
   JsonDocument doc;
 
+  doc["id"] = id_doc;
   doc["estadoFormato"] = alterarFormato;
   doc["estado_Seta"] = estadoSeta;
   doc["estado_Farol"] = estadoFarol;
@@ -631,7 +629,7 @@ void enviar_mqtt()
   }
   else
     doc["salvar"] = false;
-  
+
   if (tempMotor00 != AtualizacaoMotor00)
   {
     doc["salvar"] = true;
@@ -639,7 +637,7 @@ void enviar_mqtt()
   }
   else
     doc["salvar"] = false;
-  
+
   if (tempMotor01 != AtualizacaoMotor01)
   {
     doc["salvar"] = true;
@@ -647,7 +645,7 @@ void enviar_mqtt()
   }
   else
     doc["salvar"] = false;
-  
+
   if (tempMotor02 != AtualizacaoMotor02)
   {
     doc["salvar"] = true;
@@ -655,7 +653,7 @@ void enviar_mqtt()
   }
   else
     doc["salvar"] = false;
-  
+
   if (tempMotor03 != AtualizacaoMotor03)
   {
     doc["salvar"] = true;
@@ -663,7 +661,6 @@ void enviar_mqtt()
   }
   else
     doc["salvar"] = false;
-  
 
   static unsigned long tempoAntes = 0;
   unsigned long tempoAgora = millis();
@@ -692,11 +689,9 @@ void joystick()
 
   if (atualizacao)
   {
-    prefs.begin("workSpace", false);
-
     if (botaoA && !botaoAntesA)
     {
-      prefs.putInt("estado_Formato_Salvo", ++alterarFormato);
+      alterarFormato++;
 
       if (alterarFormato >= 2)
         alterarFormato = 2;
@@ -704,7 +699,7 @@ void joystick()
 
     else if (botaoC && !botaoAntesC)
     {
-      prefs.putInt("estado_Formato_Salvo", --alterarFormato);
+      alterarFormato--;
 
       if (alterarFormato <= 0)
         alterarFormato = 0;
@@ -717,8 +712,6 @@ void joystick()
 
       // Serial.printf("estadoSeta = %d\t", estadoSeta);
       // Serial.printf("posicaoSeta = %d\n", posicaoSeta);
-      prefs.putBool("estado_Seta_Salvo", estadoSeta);
-      prefs.putInt("posicao_Seta_Salvo", posicaoSeta);
     }
 
     else if (botaoD && !botaoAntesD)
@@ -728,8 +721,6 @@ void joystick()
 
       // Serial.printf("estadoSeta = %d\t", estadoSeta);
       // Serial.printf("posicaoSeta = %d\n", posicaoSeta);
-      prefs.putBool("estado_Seta_Salvo", estadoSeta);
-      prefs.putInt("posicao_Seta_Salvo", posicaoSeta);
     }
 
     else if (botaoE && !botaoAntesE)
@@ -737,7 +728,6 @@ void joystick()
       estadoModo = !estadoModo;
       atualizacaoDisplay = 1;
       Serial.printf("Modo = %s\n", estadoModo ? "Auto" : "Manual");
-      prefs.putBool("estado_Modo_Salvo", estadoModo);
     }
 
     if (botaoF && !botaoAntesF)
@@ -774,87 +764,86 @@ void joystick()
     botaoAntesF = botaoF;
     // botaoAntesK = botaoK;
 
-    prefs.end();
-
-    switch (alterarFormato)
+    if (!estadoModo)
     {
-    case 0: // Formato Padrão
-      if (analogX == 9 && analogY > 15)
-        motor.avancar(velocidadeCarrinho);
+      switch (alterarFormato)
+      {
+      case 0: // Formato Padrão
+        if (analogX == 9 && analogY > 15)
+          motor.avancar(velocidadeCarrinho);
 
-      else if (analogX == 9 && analogY < 5)
-        motor.para_traz(velocidadeCarrinho);
+        else if (analogX == 9 && analogY < 5)
+          motor.para_traz(velocidadeCarrinho);
 
-      else if (analogX > 15 && analogY == 9)
-        motor.esquerda(velocidadeCarrinho);
+        else if (analogX > 15 && analogY == 9)
+          motor.esquerda(velocidadeCarrinho);
 
-      else if (analogX < 5 && analogY == 9)
-        motor.direita(velocidadeCarrinho);
+        else if (analogX < 5 && analogY == 9)
+          motor.direita(velocidadeCarrinho);
 
-      else if (analogX > 15 && analogY > 15)
-        motor.avancar_esquerda(velocidadeCarrinho);
+        else if (analogX > 15 && analogY > 15)
+          motor.avancar_esquerda(velocidadeCarrinho);
 
-      else if (analogX < 5 && analogY > 15)
-        motor.avancar_direita(velocidadeCarrinho);
+        else if (analogX < 5 && analogY > 15)
+          motor.avancar_direita(velocidadeCarrinho);
 
-      else if (analogX > 15 && analogY < 5)
-        motor.para_traz_esquerda(velocidadeCarrinho);
+        else if (analogX > 15 && analogY < 5)
+          motor.para_traz_esquerda(velocidadeCarrinho);
 
-      else if (analogX < 5 && analogY < 5)
-        motor.para_traz_direita(velocidadeCarrinho);
+        else if (analogX < 5 && analogY < 5)
+          motor.para_traz_direita(velocidadeCarrinho);
 
-      else
-        motor.parar();
+        else
+          motor.parar();
 
-      break;
+        break;
 
-    case 1: // Formato Circular
-      if (analogX > 15 && analogY == 9)
-        motor.girar_direita(velocidadeCarrinho);
+      case 1: // Formato Circular
+        if (analogX > 15 && analogY == 9)
+          motor.girar_direita(velocidadeCarrinho);
 
-      else if (analogX < 5 && analogY == 9)
-        motor.girar_esquerda(velocidadeCarrinho);
+        else if (analogX < 5 && analogY == 9)
+          motor.girar_esquerda(velocidadeCarrinho);
 
-      else if (analogX > 15 && analogY > 15)
-        motor.curva_direita_frente(velocidadeCarrinho);
+        else if (analogX > 15 && analogY > 15)
+          motor.curva_direita_frente(velocidadeCarrinho);
 
-      else if (analogX < 5 && analogY > 15)
-        motor.curva_esquerda_frente(velocidadeCarrinho);
+        else if (analogX < 5 && analogY > 15)
+          motor.curva_esquerda_frente(velocidadeCarrinho);
 
-      else if (analogX > 15 && analogY < 5)
-        motor.curva_direita_traz(velocidadeCarrinho);
+        else if (analogX > 15 && analogY < 5)
+          motor.curva_direita_traz(velocidadeCarrinho);
 
-      else if (analogX < 5 && analogY < 5)
-        motor.curva_esquerda_traz(velocidadeCarrinho);
+        else if (analogX < 5 && analogY < 5)
+          motor.curva_esquerda_traz(velocidadeCarrinho);
 
-      else
-        motor.parar();
+        else
+          motor.parar();
 
-      break;
+        break;
 
-    case 2: // Formato Arco
-      if (analogX > 15 && analogY > 15)
-        motor.arco_lateral_direita_frente(velocidadeCarrinho);
+      case 2: // Formato Arco
+        if (analogX > 15 && analogY > 15)
+          motor.arco_lateral_direita_frente(velocidadeCarrinho);
 
-      else if (analogX < 5 && analogY > 15)
-        motor.arco_lateral_esquerda_frente(velocidadeCarrinho);
+        else if (analogX < 5 && analogY > 15)
+          motor.arco_lateral_esquerda_frente(velocidadeCarrinho);
 
-      else if (analogX > 15 && analogY < 5)
-        motor.arco_lateral_esquerda_traz(velocidadeCarrinho);
+        else if (analogX > 15 && analogY < 5)
+          motor.arco_lateral_esquerda_traz(velocidadeCarrinho);
 
-      else if (analogX < 5 && analogY < 5)
-        motor.arco_lateral_direita_traz(velocidadeCarrinho);
+        else if (analogX < 5 && analogY < 5)
+          motor.arco_lateral_direita_traz(velocidadeCarrinho);
 
-      else
-        motor.parar();
+        else
+          motor.parar();
 
-      break;
+        break;
 
-    default:
-      break;
+      default:
+        break;
+      }
     }
-
-    prefs.end();
     atualizacao = 0;
   }
 }
