@@ -75,7 +75,7 @@ bool estadoLanterna = 0;
 int posicaoFarol = 0;
 int posicaoSeta = 0;
 int posicaoLanterna = 0;
-int frequenciaPisca = 1000;
+int frequenciaPisca = 500;
 
 bool botaoA = 0;
 bool botaoAntesA = 0;
@@ -183,6 +183,7 @@ void displayCarrinho();
 void desenhaMenuBase();
 void piscarSetaApp();
 void piscarSetaDash();
+void piscarSetaJoystick();
 
 void IRAM_ATTR encoderISR()
 {
@@ -430,6 +431,11 @@ void loop()
   {
     carrinho.seguirLinhaStep(kp, ki, kd, vyPercent);
     // carrinho.tick(estadoTick);
+
+    if (distancia < 150)
+      pararCarrinho();
+
+    Serial.printf("distancia : %d\n", distancia);
   }
 
   else
@@ -439,37 +445,7 @@ void loop()
 
   piscarSetaApp();
   piscarSetaDash();
-  // if (estadoLanterna)
-  // {
-  //   leds.ligarLanterna(AMBOS);
-  // }
-
-  // else
-  // {
-  //   leds.desligarLed(3);
-  // }
-
-  // if (estadoSeta)
-  // {
-  //   switch (posicaoSeta)
-  //   {
-  //   case 1:
-  //     leds.piscarSeta(AMBOS, frequenciaPisca);
-  //     break;
-  //   case 2:
-  //     leds.piscarSeta(DIREITA, frequenciaPisca);
-  //     break;
-  //   case 3:
-  //     leds.piscarSeta(ESQUERDA, frequenciaPisca);
-  //     break;
-
-  //   default:
-  //     break;
-  //   }
-  // }
-
-  // else
-  //   leds.desligarLed(2);
+  piscarSetaJoystick();
 }
 
 void Callback(char *topic, byte *payload, unsigned int length)
@@ -766,6 +742,7 @@ void enviar_mqtt()
 
 void joystick()
 {
+
   if (atualizacao)
   {
     prefs.begin("workSpace", false);
@@ -787,17 +764,6 @@ void joystick()
     }
 
     else if (botaoB && !botaoAntesB)
-    {
-      estadoSeta = !estadoSeta;
-      posicaoSeta = 2;
-
-      Serial.printf("estadoSeta = %d\t", estadoSeta);
-      Serial.printf("posicaoSeta = %d\n", posicaoSeta);
-      // prefs.putBool("estado_Seta_Salvo", estadoSeta);
-      // prefs.putInt("posicao_Seta_Salvo", posicaoSeta);
-    }
-
-    else if (botaoD && !botaoAntesD)
     {
       estadoSeta = !estadoSeta;
       posicaoSeta = 3;
@@ -830,7 +796,19 @@ void joystick()
     if (botaoF && !botaoAntesF)
     {
       estadoFarol = !estadoFarol;
-      Serial.printf("estadoFarol = %d\t", estadoFarol);
+      Serial.printf("estadoFarol = %d\n", estadoFarol);
+
+      if (estadoFarol)
+      {
+        leds.ligarFarol(AMBOS);
+        leds.ligarLanterna(AMBOS);
+      }
+
+      else
+      {
+        leds.desligarLed(1);
+        leds.desligarLed(3);
+      }
     }
 
     if (botaoK) // botão está pressionado
@@ -905,12 +883,6 @@ void joystick()
       else
         motor.parar();
 
-
-      if (distancia < 200)
-      {
-        motor.parar();
-        // Serial.printf("Distancia = %d\n", distancia);
-      }
       break;
 
     case 1: // Formato Circular
@@ -937,44 +909,6 @@ void joystick()
       else
         motor.parar();
 
-      if (distancia < 200)
-      {
-        motor.parar();
-        // Serial.printf("Distancia = %d\n", distancia);
-
-        switch (estadoAtual)
-        {
-        case NORMAL:
-          if (distancia <= 200)
-          {
-            Serial.println("Obstáculo detectado! Parando...");
-
-            // motor.parar();
-            // tempoDistancia01 = millis();
-            estadoAtual = PARANDO;
-          }
-          break;
-
-        case PARANDO:
-          if (millis() - tempoDistancia01 > 2000) // espera 1s parado
-          {
-            Serial.println("Girando meia volta...");
-            motor.girar_direita(40); // velocidade do giro
-            // tempoDistancia02 = millis();
-            estadoAtual = GIRANDO;
-          }
-          break;
-
-        case GIRANDO:
-          if (millis() - tempoDistancia02 > 10000) // TEMPO PARA MEIA VOLTA (ajuste fino)
-          {
-            Serial.println("Meia volta concluída!");
-            motor.parar();
-            estadoAtual = NORMAL;
-          }
-          break;
-        }
-      }
       break;
 
     case 2: // Formato Arco
@@ -993,43 +927,6 @@ void joystick()
       else
         motor.parar();
 
-      if (distancia < 200)
-      {
-        motor.parar();
-        // Serial.printf("Distancia = %d\n", distancia);
-
-        switch (estadoAtual)
-        {
-        case NORMAL:
-          if (distancia < 150)
-          {
-            // motor.parar();
-            Serial.println("Obstáculo detectado! Parando...");
-            // tempoDistancia01 = millis();
-            estadoAtual = PARANDO;
-          }
-          break;
-
-        case PARANDO:
-          if (millis() - tempoDistancia01 >= 2000) // espera 1s parado
-          {
-            Serial.println("Girando meia volta...");
-            motor.girar_direita(30); // velocidade do giro
-            // tempoDistancia02 = millis();
-            estadoAtual = GIRANDO;
-          }
-          break;
-
-        case GIRANDO:
-          if (millis() - tempoDistancia02 >= 10000) // TEMPO PARA MEIA VOLTA (ajuste fino)
-          {
-            Serial.println("Meia volta concluída!");
-            motor.parar();
-            estadoAtual = NORMAL;
-          }
-          break;
-        }
-      }
       break;
 
     default:
@@ -1146,6 +1043,33 @@ void piscarSetaDash()
 
   if (estado_seta_dir_dash)
     leds.piscarSeta(DIREITA, frequenciaPisca);
+
+  else
+    leds.desligarLed(2);
+}
+
+void piscarSetaJoystick()
+{
+  leds.update();
+
+  if (estadoSeta)
+  {
+    switch (posicaoSeta)
+    {
+    case 1:
+      leds.piscarSeta(AMBOS, frequenciaPisca);
+      break;
+    case 2:
+      leds.piscarSeta(DIREITA, frequenciaPisca);
+      break;
+    case 3:
+      leds.piscarSeta(ESQUERDA, frequenciaPisca);
+      break;
+
+    default:
+      break;
+    }
+  }
 
   else
     leds.desligarLed(2);
