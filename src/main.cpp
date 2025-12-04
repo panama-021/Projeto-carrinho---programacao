@@ -22,14 +22,13 @@
 #define AMBOS 1    // Liga os dois leds
 #define DIREITA 2  // Liga os led direita
 #define ESQUERDA 3 // Liga os led esquerda
+// 1 desliga farol
+// 2 desliga seta
+// 3 desliga lanterna
 
 #define ENCODER_A 38
 #define ENCODER_B 37
 #define ENCODER_BTN 19
-
-// 1 desliga farol
-// 2 desliga seta
-// 3 desliga lanterna
 
 const int mqtt_port = 8883;
 const char *mqtt_id = "Panamaaaa_esp32";
@@ -119,30 +118,20 @@ bool estado_seta_esq_dash = false;
 bool estado_seta_dir_dash = false;
 bool estado_Lanterna_dash = false;
 
-int estadoIntensidade = 0;
-
-float ultimoErroValido = 0.0f;
-static constexpr int ERRO_SEM_LINHA = INT16_MAX;
-bool INVERTER_OMEGA = true;
-
 bool atualizacaoDisplay = 0;
 bool estadoModo = 0;
-bool telaCreditos = 0; // ← novo: indica se está na tela de créditos
+bool telaCreditos = 0; 
 bool modoEasterEgg = false;
-
 bool esperandoEaster = false;
-unsigned long tempoPressionado = 0;
-unsigned long tempo = 4000;
-const unsigned long TEMPO_EASTER = 3000;
 
-volatile int movimento = 1; // começa na primeira opção
+volatile int movimento = 1; 
 volatile int acumulador = 0;
 volatile bool mudou = false;
 volatile uint8_t ultimoEstado = 0;
 
 unsigned long ultimoTempo = 0;
 const unsigned long intervalo = 3000;
-unsigned long ultimoCheckCartao = 0; // controle do tempo de verificação NFC
+unsigned long ultimoCheckCartao = 0; 
 const unsigned long intervaloCartao = 500;
 
 // Banco de dados
@@ -160,11 +149,6 @@ enum EstadoCarrinho
   PARANDO,
   GIRANDO
 };
-unsigned long tempoDistancia01 = 2000;
-unsigned long tempoDistancia02 = 11000;
-unsigned long tempoDistancia03 = 11000;
-
-uint32_t tPrevMicros = 0;
 
 float kp = 6.0f, ki = 0.5f, kd = 0.5f;
 float vyPercent = 20.0f;
@@ -244,10 +228,6 @@ void setup()
   sensor.startContinuous(25);
   sensor.setTimeout(100);
 
-  tft.setRotation(1);
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE);
-
   // Inicialização do MCP
   for (uint8_t i = 0; i < 8; i++)
     mcp.pinMode(i, INPUT); // GPIOA0..7 sensores
@@ -295,26 +275,11 @@ void setup()
 
   carrinho.begin();
 
-  while (!sensor.init(0x29))
-  {
-    unsigned long agora = millis();
-    if (agora - ultimoTempo >= intervalo)
-    {
-      ultimoTempo = agora;
-      Serial.println("Tentando reconectar VL53L0X...");
-    }
-  }
-
-  sensor.setMeasurementTimingBudget(20000);
-  sensor.startContinuous(25);
-  sensor.setTimeout(100);
-
   Serial.println("Sistema iniciado, aproxime o cartão para ativar o carrinho.");
 }
 
 void loop()
 {
-
   checkWiFi();
 
   if (!mqtt.connected())
@@ -383,14 +348,13 @@ void loop()
 
   // Se leitura muito baixa, considera SEM obstáculo
   if (leitura < 80)
-  {
     leitura = 2000; // longe
-  }
 
   // filtro
   distanciaFiltrada = 0.7 * distanciaFiltrada + 0.3 * leitura;
   distancia = distanciaFiltrada;
 
+  
   Encoder_boot.update();
 
   if (mudou)
@@ -532,9 +496,7 @@ void Callback(char *topic, byte *payload, unsigned int length)
     }
 
     if (!doc["estado_Seta_app"].isNull())
-    {
       estadoSetaApp = doc["estado_Seta_app"];
-    }
 
     if (!doc["estado_Lanterna_app"].isNull())
     {
@@ -589,14 +551,13 @@ void Callback(char *topic, byte *payload, unsigned int length)
         else
           leds.desligarLed(1);
       }
+
       if (!doc["estado_seta_esq_dash"].isNull())
-      {
         estado_seta_esq_dash = doc["estado_seta_esq_dash"];
-      }
+
       if (!doc["estado_seta_dir_dash"].isNull())
-      {
         estado_seta_dir_dash = doc["estado_seta_dir_dash"];
-      }
+
       if (!doc["estado_Lanterna_dash"].isNull())
       {
         estado_Lanterna_dash = doc["estado_Lanterna_dash"];
@@ -666,57 +627,43 @@ void enviar_mqtt()
   if (alterarFormato != AtualizacaoFormato)
   {
     doc["salvar"] = true;
-
     AtualizacaoFormato = alterarFormato;
   }
   else
-  {
     doc["salvar"] = false;
-  }
-
+  
   if (tempMotor00 != AtualizacaoMotor00)
   {
     doc["salvar"] = true;
-
     AtualizacaoMotor00 = tempMotor00;
   }
   else
-  {
     doc["salvar"] = false;
-  }
-
+  
   if (tempMotor01 != AtualizacaoMotor01)
   {
     doc["salvar"] = true;
-
     AtualizacaoMotor01 = tempMotor01;
   }
   else
-  {
     doc["salvar"] = false;
-  }
-
+  
   if (tempMotor02 != AtualizacaoMotor02)
   {
     doc["salvar"] = true;
-
     AtualizacaoMotor02 = tempMotor02;
   }
   else
-  {
     doc["salvar"] = false;
-  }
-
+  
   if (tempMotor03 != AtualizacaoMotor03)
   {
     doc["salvar"] = true;
-
     AtualizacaoMotor03 = tempMotor03;
   }
   else
-  {
     doc["salvar"] = false;
-  }
+  
 
   static unsigned long tempoAntes = 0;
   unsigned long tempoAgora = millis();
@@ -766,23 +713,23 @@ void joystick()
     else if (botaoB && !botaoAntesB)
     {
       estadoSeta = !estadoSeta;
-      posicaoSeta = 3;
+      posicaoSeta = 2;
 
-      Serial.printf("estadoSeta = %d\t", estadoSeta);
-      Serial.printf("posicaoSeta = %d\n", posicaoSeta);
-      // prefs.putBool("estado_Seta_Salvo", estadoSeta);
-      // prefs.putInt("posicao_Seta_Salvo", posicaoSeta);
+      // Serial.printf("estadoSeta = %d\t", estadoSeta);
+      // Serial.printf("posicaoSeta = %d\n", posicaoSeta);
+      prefs.putBool("estado_Seta_Salvo", estadoSeta);
+      prefs.putInt("posicao_Seta_Salvo", posicaoSeta);
     }
 
     else if (botaoD && !botaoAntesD)
     {
       estadoSeta = !estadoSeta;
-      posicaoSeta = 2;
+      posicaoSeta = 3;
 
-      Serial.printf("estadoSeta = %d\t", estadoSeta);
-      Serial.printf("posicaoSeta = %d\n", posicaoSeta);
-      // prefs.putBool("estado_Seta_Salvo", estadoSeta);
-      // prefs.putInt("posicao_Seta_Salvo", posicaoSeta);
+      // Serial.printf("estadoSeta = %d\t", estadoSeta);
+      // Serial.printf("posicaoSeta = %d\n", posicaoSeta);
+      prefs.putBool("estado_Seta_Salvo", estadoSeta);
+      prefs.putInt("posicao_Seta_Salvo", posicaoSeta);
     }
 
     else if (botaoE && !botaoAntesE)
@@ -833,18 +780,10 @@ void joystick()
     {
     case 0: // Formato Padrão
       if (analogX == 9 && analogY > 15)
-      {
         motor.avancar(velocidadeCarrinho);
-        // leds.ligarFarol(AMBOS);
-        // leds.desligarLed(3);
-      }
 
       else if (analogX == 9 && analogY < 5)
-      {
         motor.para_traz(velocidadeCarrinho);
-        // leds.ligarLanterna(AMBOS);
-        // leds.desligarLed(1);
-      }
 
       else if (analogX > 15 && analogY == 9)
         motor.esquerda(velocidadeCarrinho);
@@ -853,32 +792,16 @@ void joystick()
         motor.direita(velocidadeCarrinho);
 
       else if (analogX > 15 && analogY > 15)
-      {
         motor.avancar_esquerda(velocidadeCarrinho);
-        // leds.ligarFarol(AMBOS);
-        // leds.desligarLed(3);
-      }
 
       else if (analogX < 5 && analogY > 15)
-      {
         motor.avancar_direita(velocidadeCarrinho);
-        // leds.ligarFarol(AMBOS);
-        // leds.desligarLed(3);
-      }
 
       else if (analogX > 15 && analogY < 5)
-      {
         motor.para_traz_esquerda(velocidadeCarrinho);
-        // leds.ligarLanterna(AMBOS);
-        // leds.desligarLed(1);
-      }
 
       else if (analogX < 5 && analogY < 5)
-      {
         motor.para_traz_direita(velocidadeCarrinho);
-        // leds.ligarLanterna(AMBOS);
-        // leds.desligarLed(1);
-      }
 
       else
         motor.parar();
@@ -899,11 +822,9 @@ void joystick()
         motor.curva_esquerda_frente(velocidadeCarrinho);
 
       else if (analogX > 15 && analogY < 5)
-
         motor.curva_direita_traz(velocidadeCarrinho);
 
       else if (analogX < 5 && analogY < 5)
-
         motor.curva_esquerda_traz(velocidadeCarrinho);
 
       else
