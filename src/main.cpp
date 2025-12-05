@@ -55,8 +55,9 @@ Bounce Encoder_boot = Bounce();
 Timezone timesTamp;
 
 bool atualizacao = 0;
-bool atualizacaoApp = 0;
-bool atualizacaoDash = 0;
+bool atualizacaoPiscarApp = 0;
+bool atualizacaoPiscarDash = 0;
+bool atualizacaoPiscarJoystick = 0;
 
 bool carrinhoAtivo = false;
 
@@ -152,7 +153,7 @@ enum EstadoCarrinho
 };
 
 float kp = 6.0f, ki = 0.5f, kd = 0.5f;
-float vyPercent = 20.0f;
+float vyPercent = 25.0f;
 
 EstadoCarrinho estadoAtual = NORMAL;
 unsigned long tempoAcao01 = 2000;
@@ -404,6 +405,7 @@ void loop()
 
   displayCarrinho();
 
+  leds.update();
   piscarSetaApp();
   piscarSetaDash();
   piscarSetaJoystick();
@@ -493,7 +495,12 @@ void Callback(char *topic, byte *payload, unsigned int length)
     }
 
     if (!doc["estado_Seta_app"].isNull())
+    {
       estadoSetaApp = doc["estado_Seta_app"];
+      atualizacaoPiscarApp = true;
+      atualizacaoPiscarDash = false;
+      atualizacaoPiscarJoystick = false;
+    }
 
     if (!doc["estado_Lanterna_app"].isNull())
     {
@@ -509,31 +516,28 @@ void Callback(char *topic, byte *payload, unsigned int length)
     // if (!doc["valor_kp"].isNull())
     // {
     //   kp = doc["valor_kp"];
-    //   atualizacaoApp = 1;
+    //   atualizacaoPiscarApp = 1;
     // }
 
     // if (!doc["valor_ki"].isNull())
     // {
     //   ki = doc["valor_ki"];
-    //   atualizacaoApp = 1;
+    //   atualizacaoPiscarApp = 1;
     // }
 
     // if (!doc["valor_kd"].isNull())
     // {
     //   kd = doc["valor_kd"];
-    //   atualizacaoApp = 1;
+    //   atualizacaoPiscarApp = 1;
     // }
 
     // if (!doc["valor_velocidade"].isNull())
     // {
     //   vyPercent = doc["valor_velocidade"];
-    //   atualizacaoApp = 1;
+    //   atualizacaoPiscarApp = 1;
     // }
     if (!doc["estado_acesso"].isNull())
-    {
       estadoAcesso = doc["estado_acesso"];
-      atualizacaoDash = 1;
-    }
 
     if (estadoAcesso)
     {
@@ -550,10 +554,20 @@ void Callback(char *topic, byte *payload, unsigned int length)
       }
 
       if (!doc["estado_seta_esq_dash"].isNull())
+      {
         estado_seta_esq_dash = doc["estado_seta_esq_dash"];
+        atualizacaoPiscarDash = true;
+        atualizacaoPiscarJoystick = false;
+        atualizacaoPiscarApp = false;
+      }
 
       if (!doc["estado_seta_dir_dash"].isNull())
+      {
         estado_seta_dir_dash = doc["estado_seta_dir_dash"];
+        atualizacaoPiscarDash = true;
+        atualizacaoPiscarJoystick = false;
+        atualizacaoPiscarApp = false;
+      }
 
       if (!doc["estado_Lanterna_dash"].isNull())
       {
@@ -707,15 +721,20 @@ void joystick()
 
     else if (botaoB && !botaoAntesB)
     {
+      atualizacaoPiscarJoystick = true;
+      atualizacaoPiscarApp = false;
+      atualizacaoPiscarDash = false;
       estadoSeta = !estadoSeta;
       posicaoSeta = 2;
-
       // Serial.printf("estadoSeta = %d\t", estadoSeta);
       // Serial.printf("posicaoSeta = %d\n", posicaoSeta);
     }
 
     else if (botaoD && !botaoAntesD)
     {
+      atualizacaoPiscarJoystick = true;
+      atualizacaoPiscarApp = false;
+      atualizacaoPiscarDash = false;
       estadoSeta = !estadoSeta;
       posicaoSeta = 3;
 
@@ -921,51 +940,16 @@ void displayCarrinho()
 
 void piscarSetaApp()
 {
-  leds.update();
-
-  switch (estadoSetaApp)
+  if (atualizacaoPiscarApp)
   {
-  case 1:
-    leds.piscarSeta(AMBOS, frequenciaPisca);
-    break;
-  case 2:
-    leds.piscarSeta(DIREITA, frequenciaPisca);
-    break;
-  case 3:
-    leds.piscarSeta(ESQUERDA, frequenciaPisca);
-    break;
+    atualizacaoPiscarJoystick = false;
+    atualizacaoPiscarDash = false;
 
-  default:
-    leds.desligarLed(2);
-    break;
-  }
-}
-
-void piscarSetaDash()
-{
-  leds.update();
-
-  if (estado_seta_esq_dash)
-    leds.piscarSeta(ESQUERDA, frequenciaPisca);
-
-  else
-    leds.desligarLed(2);
-
-  if (estado_seta_dir_dash)
-    leds.piscarSeta(DIREITA, frequenciaPisca);
-
-  else
-    leds.desligarLed(2);
-}
-
-void piscarSetaJoystick()
-{
-  leds.update();
-
-  if (estadoSeta)
-  {
-    switch (posicaoSeta)
+    switch (estadoSetaApp)
     {
+    case 0:
+      leds.desligarLed(2);
+      break;
     case 1:
       leds.piscarSeta(AMBOS, frequenciaPisca);
       break;
@@ -977,10 +961,52 @@ void piscarSetaJoystick()
       break;
 
     default:
+      // leds.desligarLed(2);
       break;
     }
   }
+}
 
-  else
-    leds.desligarLed(2);
+void piscarSetaDash()
+{
+  if (atualizacaoPiscarDash)
+  {
+    if (estado_seta_esq_dash)
+      leds.piscarSeta(ESQUERDA, frequenciaPisca);
+
+    else if (estado_seta_dir_dash)
+      leds.piscarSeta(DIREITA, frequenciaPisca);
+
+    else
+      leds.desligarLed(2);
+  }
+}
+
+void piscarSetaJoystick()
+{
+  if (atualizacaoPiscarJoystick)
+  {
+
+    if (estadoSeta)
+    {
+      switch (posicaoSeta)
+      {
+      case 1:
+        leds.piscarSeta(AMBOS, frequenciaPisca);
+        break;
+      case 2:
+        leds.piscarSeta(DIREITA, frequenciaPisca);
+        break;
+      case 3:
+        leds.piscarSeta(ESQUERDA, frequenciaPisca);
+        break;
+
+      default:
+        break;
+      }
+    }
+
+    else
+      leds.desligarLed(2);
+  }
 }
